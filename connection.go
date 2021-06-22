@@ -766,10 +766,11 @@ func (s *Connection) Close() error {
 	}
 
 	err := s.framer.WriteFrame(goAwayFrame)
-	go s.shutdown(s.closeTimeout)
 	if err != nil {
 		return err
 	}
+
+	go s.shutdown(s.closeTimeout)
 
 	return nil
 }
