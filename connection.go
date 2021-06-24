@@ -534,12 +534,11 @@ func (s *Connection) handleReplyFrame(frame *spdy.SynReplyFrame) error {
 }
 
 func (s *Connection) handleResetFrame(frame *spdy.RstStreamFrame) error {
-	stream, streamOk := s.getStream(frame.StreamId)
+	stream, streamOk := s.removeStreamById(frame.StreamId)
 	if !streamOk {
 		// Stream has already been removed
 		return nil
 	}
-	s.removeStream(stream)
 	stream.closeRemoteChannels()
 
 	if !stream.replied {
@@ -941,6 +940,19 @@ func (s *Connection) removeStream(stream *Stream) {
 	debugMessage("(%p) (%p) Stream removed, broadcasting: %d", s, stream, stream.streamId)
 	s.streamCond.Broadcast()
 	s.streamCond.L.Unlock()
+}
+
+func (s *Connection) removeStreamById(streamId spdy.StreamId) (stream *Stream, ok bool) {
+	s.streamCond.L.Lock()
+	defer s.streamCond.L.Unlock()
+	stream, ok = s.streams[streamId]
+	if !ok {
+		return nil, false
+	}
+	delete(s.streams, stream.streamId)
+	debugMessage("(%p) (%p) Stream removed, broadcasting: %d", s, stream, stream.streamId)
+	s.streamCond.Broadcast()
+	return stream, ok
 }
 
 func (s *Connection) getStream(streamId spdy.StreamId) (stream *Stream, ok bool) {
